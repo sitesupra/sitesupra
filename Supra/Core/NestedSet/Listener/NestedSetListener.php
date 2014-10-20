@@ -1,13 +1,13 @@
 <?php
 
-namespace Supra\Core\Doctrine\Subscriber;
+namespace Supra\Core\NestedSet\Listener;
 
 use Doctrine\ORM\EntityManager;
-use Supra\NestedSet\Node\EntityNodeInterface;
-use Supra\NestedSet\Node\DoctrineNode;
 use Doctrine\ORM\Event\LifecycleEventArgs;
 use Doctrine\Common\EventSubscriber;
 use Doctrine\ORM\Events;
+use Supra\Core\NestedSet\Node\EntityNodeInterface;
+use Supra\Core\NestedSet\Node\DoctrineNode;
 
 /**
  * Attaches nested set node to the tree element
