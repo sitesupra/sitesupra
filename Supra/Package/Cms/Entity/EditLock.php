@@ -6,12 +6,9 @@ use Symfony\Component\Security\Core\User\UserInterface;
 use Supra\Package\Cms\Entity\Abstraction\Localization;
 
 /**
- * Editing lock.
- * 
- * @Entity
- * @Table(name="lock_data")
+ * @Entity(readOnly=true)
  */
-class LockData extends Abstraction\Entity implements Abstraction\TimestampableInterface
+class EditLock extends Abstraction\Entity implements Abstraction\TimestampableInterface
 {
 	/**
 	 * @Column(type="string")
@@ -41,12 +38,15 @@ class LockData extends Abstraction\Entity implements Abstraction\TimestampableIn
 	 * @param UserInterface $user
 	 * @param Localization $localization
 	 */
-	public function __construct(UserInterface $user, Localization $localization)
-	{
+	public function __construct(
+			UserInterface $user,
+			Localization $localization,
+			$localizationRevision
+	) {
 		parent::__construct();
 		
 		$this->userName = $user->getUsername();
-		$this->localizationRevision = $localization->getRevision();
+		$this->localizationRevision = $localizationRevision;
 
 		$localization->setLock($this);
 	}
