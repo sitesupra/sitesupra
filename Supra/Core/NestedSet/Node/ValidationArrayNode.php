@@ -1,34 +1,20 @@
 <?php
 
-// @FIXME
+namespace Supra\Core\NestedSet\Node;
 
-namespace Supra\NestedSet\Command;
-
-/**
- * Description of ValidationArrayNode
- */
-class ValidationArrayNode extends \Supra\NestedSet\Node\ArrayNode
+class ValidationArrayNode extends ArrayNode
 {
 	public $originalData;
 	
-	/**
-	 * 
-	 */
-	public function __construct(\Supra\NestedSet\Node\NodeInterface $entity)
+	public function __construct(NodeInterface $entity)
 	{
 		$this->originalData = array(
 			'id' => $entity->getId(),
 			'left' => $entity->getLeftValue(),
 			'right' => $entity->getRightValue(),
 			'level' => $entity->getLevel(),
-			'isLeafInterface' => false,
+			'isLeaf' => ($entity instanceof NodeLeafInterface),
 		);
-		
-		if ($entity instanceof \Supra\FileStorage\Entity\File
-				|| $entity instanceof \Supra\FileStorage\Entity\Image) {
-			
-			$this->originalData['isLeafInterface'] = true;
-		}
 	}
 
 	public function getNodeTitle()
@@ -47,16 +33,12 @@ class ValidationArrayNode extends \Supra\NestedSet\Node\ArrayNode
 			$levelStatus = sprintf('LEVEL %4d --> %4s', $this->originalData['level'], $this->level);
 		}
 		
-		if ($this->originalData['isLeafInterface'] && ! $this->isLeaf()) {
-			$leafStatus = 'should be LEAF but has children';
-		}
-		
 		return sprintf('%20s   %20s   %20s   %20s   %20s',
 				$id,
 				$leftStatus,
 				$rightStatus,
 				$levelStatus,
-				$leafStatus
+				(! $this->isLeaf() && $this->originalData['isLeaf'] ? 'cannot have children' : '')
 		);
 	}
 
@@ -65,7 +47,7 @@ class ValidationArrayNode extends \Supra\NestedSet\Node\ArrayNode
 		return $leftStatus = $this->originalData['left'] == $this->left &&
 				$rightStatus = $this->originalData['right'] == $this->right &&
 				$levelStatus = $this->originalData['level'] == $this->level
-				&& ( $this->isLeaf() || ! $this->originalData['isLeafInterface'] )
+				&& ( $this->isLeaf() || ! $this->originalData['isLeaf'] )
 				;
 	}
 
@@ -75,10 +57,10 @@ class ValidationArrayNode extends \Supra\NestedSet\Node\ArrayNode
 	}
 	
 	/**
-	 * @return boolean
+	 * @return bool
 	 */
 	public function isOriginallyWithLeafInterface()
 	{
-		return ($this->originalData['isLeafInterface'] === true);
+		return ($this->originalData['isLeaf'] === true);
 	}
 }
