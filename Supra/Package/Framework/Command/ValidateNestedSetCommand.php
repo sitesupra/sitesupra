@@ -1,58 +1,75 @@
 <?php
 
-// @FIXME
+namespace Supra\Package\Framework\Command;
 
-namespace Supra\NestedSet\Command;
-
+use Doctrine\ORM\EntityManager;
+use Doctrine\ORM\Events;
+use Doctrine\ORM\Mapping\ClassMetadata;
+use Doctrine\ORM\Query;
+use Supra\Core\NestedSet\Event\NestedSetEvents;
+use Symfony\Component\Console\Helper\QuestionHelper;
+use Symfony\Component\Console\Question\ConfirmationQuestion;
 use Symfony\Component\Console\Input\InputInterface;
-use Symfony\Component\Console\Output\OutputInterface;
-use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputArgument;
-use Supra\ObjectRepository\ObjectRepository;
-use Supra\NestedSet\RepositoryInterface;
-use Supra\FileStorage\Listener\FilePathGenerator;
-use Supra\Controller\Pages\Listener\PagePathGenerator;
+use Symfony\Component\Console\Output\OutputInterface;
+use Supra\Core\Console\AbstractCommand;
+use Supra\Core\NestedSet\ArrayRepository;
+use Supra\Core\NestedSet\DoctrineRepository;
+use Supra\Core\NestedSet\Node\EntityNodeInterface;
+use Supra\Core\NestedSet\RepositoryInterface;
+use Supra\Core\NestedSet\Node\ValidationArrayNode;
 
-/**
- * Validates nested set for the provided entity name and provides autofixing
- */
-class ValidateNestedSetCommand extends Command
+class ValidateNestedSetCommand extends AbstractCommand
 {
-	/**
-	 * Configure
-	 */
 	protected function configure()
 	{
-		$this->setName('su:nested_set:check')
-				->setDescription('Cheks nested set indecies')
+		$this->setName('supra:nested_set:check')
+				->setDescription('Checks nested set indices')
 				->addArgument('entity', InputArgument::OPTIONAL, 'Nested set entity name');
 	}
 
 	/**
-	 * Execute command
-	 *
 	 * @param InputInterface $input
 	 * @param OutputInterface $output
+	 * @return void
 	 */
 	protected function execute(InputInterface $input, OutputInterface $output)
 	{
 		$entityNames = $input->getArgument('entity');
-		
+
+		$em = $this->container->getDoctrine()->getManager();
+		/* @var $em \Doctrine\ORM\EntityManager */
+
 		if (empty($entityNames)) {
-			$entityNames = array(
-				\Supra\Controller\Pages\Entity\Page::CN(),
-				\Supra\Controller\Pages\Entity\Template::CN(),
-				\Supra\FileStorage\Entity\Abstraction\File::CN(),
-			);
+			foreach ($em->getMetadataFactory()->getAllMetadata() as $metaData) {
+				/* @var $metaData ClassMetadata */
+				if ($metaData->getReflectionClass()
+						->implementsInterface('Supra\Core\NestedSet\Node\EntityNodeInterface')
+						&& $em->getRepository($metaData->name) instanceof RepositoryInterface) {
+
+					$entityNames[] = $metaData->name;
+				}
+			}
 		}
-		
-		if ( ! is_array($entityNames)) {
+
+		if (! is_array($entityNames)) {
 			$entityNames = array($entityNames);
 		}
 
-		$em = ObjectRepository::getEntityManager($this);
-		$this->removeListeners($em);
-		
+		$eventManager = $em->getEventManager();
+
+		// Disable any listener that could rely on nested set.
+		foreach (array(Events::onFlush, Events::postFlush, NestedSetEvents::nestedSetPostMove) as $event) {
+
+			if ($eventManager->hasListeners($event)) {
+				foreach ($eventManager->getListeners($event) as $listeners) {
+					foreach ($listeners as $listener) {
+						$eventManager->removeEventListener($event, $listener);
+					}
+				}
+			}
+		}
+
 		foreach ($entityNames as $entityName) {
 			
 			$em->beginTransaction();
@@ -64,62 +81,43 @@ class ValidateNestedSetCommand extends Command
 			if ($fixRequired) {
 
 				// Check again on the fixed data, will give up if set is still broken
-				$fixStillRequired = $this->isFixRequired($em, $output, $entityName);
-
-				if ($fixStillRequired) {
-					$output->writeln("<error>Could not repair.</error>");
+				if ($this->isFixRequired($em, $output, $entityName)) {
+					$output->writeln("<error>Nested set is broken and cannot be fixed automatically.</error>");
 					$em->rollback();
+
 					return;
 				}
 
-				// Suggest autofix
-				$commit = $this->prompt($output, '<question>Do you want to fix the nested set automatically? [y/N]</question> ');
+				$helper = $this->getHelper('question');
+				/* @var $helper QuestionHelper */
 
-				if ($commit) {
+				if ($helper->ask($input, $output, new ConfirmationQuestion('Do you want to fix the nested set automatically? [y/N] ', false))) {
 					$em->commit();
 				} else {
-					$em->rollback();
+					$em->rollBack();
 				}
 			} else {
 				$em->rollback();
 			}
 			
-			$output->writeln('Done check.');
-		}
-	}
-
-	/**
-	 * Stops the known listeners which relies on correct nested set
-	 * @param \Doctrine\ORM\EntityManager $em
-	 */
-	protected function removeListeners(\Doctrine\ORM\EntityManager $em)
-	{
-		$eventManager = $em->getEventManager();
-		$listeners = $eventManager->getListeners();
-
-		foreach ($listeners as $eventName => $listenerList) {
-			foreach ($listenerList as $listener) {
-				if ($listener instanceof FilePathGenerator || $listener instanceof PagePathGenerator) {
-					$eventManager->removeEventListener($eventName, $listener);
-				}
-			}
+			$output->writeln('Done.');
 		}
 	}
 
 	/**
 	 * Checks if the nested set fix is required
-	 * @param \Doctrine\ORM\EntityManager $em
+	 * @param EntityManager $em
 	 * @param OutputInterface $output
 	 * @param string $entityName
 	 * @return boolean
 	 */
-	protected function isFixRequired($em, $output, $entityName)
+	protected function isFixRequired(EntityManager $em, $output, $entityName)
 	{
 		$repository = $em->getRepository($entityName);
 
-		if ( ! $repository instanceof RepositoryInterface) {
+		if (! $repository instanceof RepositoryInterface) {
 			$output->writeln('<error>The entity name isn\'t configured to be in nested set');
-			return;
+			return false;
 		}
 
 		$nestedRepository = $repository->getNestedSetRepository();
@@ -129,7 +127,7 @@ class ValidateNestedSetCommand extends Command
 		// Order by left index
 		$order->byLeftAscending();
 
-		/* @var $nestedRepository \Supra\NestedSet\DoctrineRepository */
+		/* @var $nestedRepository DoctrineRepository */
 
 		$qb = $nestedRepository->createSearchQueryBuilder($filter, $order);
 
@@ -137,25 +135,28 @@ class ValidateNestedSetCommand extends Command
 		
 		$query = $qb->getQuery();
 			
-		$query->setHint(\Doctrine\ORM\Query::HINT_FORCE_PARTIAL_LOAD, true);
-		$query->setHydrationMode(\Doctrine\ORM\Query::HYDRATE_SIMPLEOBJECT);
+		$query->setHint(Query::HINT_FORCE_PARTIAL_LOAD, true);
+		$query->setHydrationMode(Query::HYDRATE_SIMPLEOBJECT);
 
 		$records = $query->getResult();
-		
-		/**
-		 * Keeps pile of current parents
-		 * @var $parents array
-		 */
+
+		// Keeps pile of current parents
 		$parents = array();
 
-		/**
-		 * Uses simple array nested set repository to recalculate the indecies
-		 * @var $arrayRepository \Supra\NestedSet\ArrayRepository
-		 */
-		$arrayRepository = new \Supra\NestedSet\ArrayRepository();
+		$arrayRepository = new ArrayRepository();
+
 		$nodes = array();
+		/* @var $nodes ValidationArrayNode[] */
 
 		foreach ($records as $record) {
+
+			if (! $record instanceof EntityNodeInterface) {
+				throw new \UnexpectedValueException(sprintf(
+					'Expecting DoctrineNode, [%s] received.',
+					get_class($record)
+				));
+			}
+
 			$level = $record->getLevel();
 
 			$node = new ValidationArrayNode($record);
@@ -176,7 +177,6 @@ class ValidateNestedSetCommand extends Command
 				if ( ! empty($parent)) {
 					$parent->addChild($node);
 				}
-
 			}
 
 			$newLevel = $node->getLevel();
@@ -189,21 +189,20 @@ class ValidateNestedSetCommand extends Command
 		$fixRequired = false;
 
 		foreach ($nodes as $node) {
-			
-			if ( ! $node->isOk()) {
+			if (! $node->isOk()) {
 
 				// Output index changes suggested
 				$output->writeln("Node " . $node->getNodeTitle());
 
 				$dbEntity = $em->find($entityName, $node->getId());
-				/* @var $dbEntity \Supra\NestedSet\Node\EntityNodeInterface */
+				/* @var $dbEntity EntityNodeInterface */
 
 				if ( ! $node->isLeaf() && $node->isOriginallyWithLeafInterface() ) {
 
 					$children = $node->getChildren();
 					foreach ($children as $child) {
 						
-						if ( ! $node->isOk()) {
+						if (! $node->isOk()) {
 							$child->moveAsNextSiblingOf($node);
 						} else {
 							$child->moveAsPrevSiblingOf($node);
@@ -211,7 +210,7 @@ class ValidateNestedSetCommand extends Command
 					}
 					
 				} else {
-				// Overwrite the indecies
+					// Overwrite the indices
 					$dbEntity->setLeftValue($node->getLeftValue());
 					$dbEntity->setRightValue($node->getRightValue());
 
@@ -228,28 +227,5 @@ class ValidateNestedSetCommand extends Command
 		}
 
 		return $fixRequired;
-	}
-
-	/**
-	 * Asks Y/N question
-	 * @param OutputInterface $output
-	 * @param string $message
-	 * @return boolean
-	 */
-	protected function prompt($output, $message)
-	{
-		$dialog = $this->getHelper('dialog');
-
-		$answer = null;
-
-		while ( ! in_array($answer, array('Y', 'N', ''), true)) {
-			$answer = strtoupper($dialog->ask($output, $message));
-		}
-
-		if ($answer === 'Y') {
-			return true;
-		}
-
-		return false;
 	}
 }
