@@ -22,6 +22,7 @@
 namespace Supra\Package\Cms\Controller;
 
 use Supra\Package\Cms\Editable\Exception\TransformationFailedException;
+use Supra\Package\Cms\Pages\PageExecutionContext;
 use Symfony\Component\HttpFoundation\Response;
 use Supra\Core\HttpFoundation\SupraJsonResponse;
 use Supra\Package\Cms\Pages\Exception\LayoutNotFound;
@@ -172,12 +173,11 @@ class PagesContentController extends AbstractPagesController
 			}
 		});
 
-		// execute, so response is rendered
-		$blockController->execute();
+		$blockData = $this->getBlockData($block, true);
 
 		// Respond with block HTML
 		return new SupraJsonResponse(array(
-				'internal_html' => (string) $blockController->getResponse()
+			'internal_html' => $blockData['html']
 		));
 	}
 
@@ -629,6 +629,13 @@ class PagesContentController extends AbstractPagesController
 		);
 
 		if ($withResponse) {
+			$pageExtension = $this->container->getTemplating()->getExtension('supraPage');
+			/* @var $pageExtension \Supra\Package\Cms\Pages\Twig\PageExtension */
+
+			$pageExtension->setPageExecutionContext(
+				new PageExecutionContext($pageRequest, $this->getPageController())
+			);
+
 			$blockController->execute();
 			$blockData['html'] = (string) $blockController->getResponse();
 		}
