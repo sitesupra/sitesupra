@@ -122,5 +122,26 @@ class HtmlTagStart extends HtmlTagAbstraction
 		return $this->getHtmlForOpenTag();
 	}
 
+	/**
+	 * @param string $name
+	 * @param array $args
+	 * @return mixed
+	 */
+	public function __call($name, $args)
+	{
+		if (! empty($args)) {
+			throw new \BadMethodCallException();
+		}
+
+		if (strpos($name, 'get') === 0) {
+			$name = substr($name, 3);
+		}
+
+		if (isset($this->attributes[$name])) {
+			return $this->attributes[$name];
+		}
+
+		throw new \BadMethodCallException();
+	}
 }
 

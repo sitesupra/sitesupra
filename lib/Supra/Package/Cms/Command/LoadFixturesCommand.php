@@ -24,6 +24,8 @@ namespace Supra\Package\Cms\Command;
 
 use Supra\Core\Console\AbstractCommand;
 use Supra\Package\Cms\Entity\Image;
+use Supra\Package\Cms\Entity\Page;
+use Supra\Package\Cms\Entity\PageLocalization;
 use Supra\Package\Cms\Entity\Template;
 use Supra\Package\Cms\Entity\TemplateLayout;
 use Supra\Package\Cms\Entity\TemplateLocalization;
@@ -119,7 +121,11 @@ class LoadFixturesCommand extends AbstractCommand
         $data = Yaml::parse(file_get_contents($dataFile));
 
         //we need to maintain creation order
-        foreach (array('group', 'user', 'image', 'template') as $section) {
+        $sections = array(
+            'group', 'user', 'image', 'template', 'page', 'pageLocalization'
+        );
+
+        foreach ($sections as $section) {
             foreach ($data[$section] as $name => $definition) {
                 $this->createEntity($section, $name, $definition);
             }
@@ -140,9 +146,15 @@ class LoadFixturesCommand extends AbstractCommand
             return $this->entityMap[$section][$name];
         }
 
-        $entity = call_user_func(array($this, 'createEntity'.ucfirst($section)), $data);
+        $entity = call_user_func(array($this, 'createEntity'.ucfirst($section)), $data, $name);
 
-        return $this->entityMap[$section][$name] = $entity;
+        if (is_array($entity)) {
+            foreach ($entity as $name => $item) {
+                $this->entityMap[$section][$name] = $item;
+            }
+        } else {
+            $this->entityMap[$section][$name] = $entity;
+        }
     }
 
     protected function resolveEntity($section, $name)
@@ -239,6 +251,53 @@ class LoadFixturesCommand extends AbstractCommand
         $this->em->flush($entity);
 
         $fileStorage->storeFileData($entity, $fileName);
+
+        return $entity;
+    }
+
+    /**
+     * @param array $data
+     * @param string $name
+     * @return array
+     */
+    protected function createEntityPage($data, $name)
+    {
+        $page = new Page();
+        $this->em->persist($page);
+
+        $pages = array(
+            $name => $page
+        );
+
+        if (! empty($data['children'])) {
+            foreach ($data['children'] as $childName => $childData) {
+
+                $children = $this->createEntityPage($childData, $childName);
+
+                $page->addChild($children[$childName]);
+
+                $pages = array_merge($pages, $children);
+            }
+        }
+
+        return $pages;
+    }
+
+    /**
+     * @param array $data
+     * @return PageLocalization
+     */
+    protected function createEntityPageLocalization($data)
+    {
+        $entity = new PageLocalization($data['locale']);
+
+        $entity->setPathPart($data['pathPart']);
+
+        $entity->setMaster($this->resolveEntity('page', $data['page']));
+
+        $entity->setTitle($data['title']);
+
+        $entity->setTemplate($this->resolveEntity('template', $data['template']));
 
         return $entity;
     }

@@ -22,10 +22,12 @@
 namespace Supra\Package\Cms\Pages\Twig;
 
 use Supra\Package\Cms\Entity\Abstraction\Localization;
+use Supra\Package\Cms\Entity\PageLocalization;
 use Supra\Package\Cms\Pages\Block\BlockExecutionContext;
 use Supra\Package\Cms\Pages\PageExecutionContext;
 use Supra\Package\Cms\Pages\Request\PageRequestEdit;
 use Supra\Package\Cms\Html\HtmlTag;
+use Supra\Package\Cms\Uri\Path;
 
 class PageExtension extends \Twig_Extension
 {
@@ -92,6 +94,52 @@ class PageExtension extends \Twig_Extension
 		return array(
 			'supraPage'	=> $this
 		);
+	}
+
+	/**
+	 * Whether the passed link is actual - is some descendant opened currently
+	 * @param string $path
+	 * @param boolean $strict
+	 * @return boolean
+	 */
+	public function isActive($path, $strict = false)
+	{
+		// Check if path is relative
+		$pathData = parse_url($path);
+		if ( ! empty($pathData['scheme'])
+			|| ! empty($pathData['host'])
+			|| ! empty($pathData['port'])
+			|| ! empty($pathData['user'])
+			|| ! empty($pathData['pass'])
+		) {
+			return false;
+		}
+
+		$path = $pathData['path'];
+
+		$localization = $this->getPage();
+
+		if ( ! $localization instanceof PageLocalization) {
+			return false;
+		}
+
+		// Remove locale prefix
+		$path = preg_replace(
+			sprintf('#^(/?)%s(/|$)#', preg_quote($localization->getLocaleId())),
+			'$1',
+			$path
+		);
+
+		$checkPath = new Path($path);
+		$currentPath = $localization->getPath();
+
+		if ($currentPath === null) {
+			return false;
+		}
+
+		return $strict
+			? $checkPath->equals($currentPath)
+			: $currentPath->startsWith($checkPath);
 	}
 
 	/**
