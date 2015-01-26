@@ -24,6 +24,7 @@ namespace Supra\Package\Cms\Command;
 use Doctrine\ORM\EntityManager;
 use Supra\Core\Console\AbstractCommand;
 use Supra\Package\CmsAuthentication\Entity\Group;
+use Supra\Package\CmsAuthentication\Entity\User;
 use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Output\OutputInterface;
 use Symfony\Component\Yaml\Yaml;
@@ -38,7 +39,8 @@ class DumpFixturesCommand extends AbstractCommand
     protected $entityMap = array();
 
     protected $entityAliasMap = array(
-        'Supra\Package\CmsAuthentication\Entity\Group' => 'group'
+        'Supra\Package\CmsAuthentication\Entity\Group' => 'group',
+        'Supra\Package\CmsAuthentication\Entity\User' => 'user'
     );
 
     protected function configure()
@@ -63,6 +65,46 @@ class DumpFixturesCommand extends AbstractCommand
         }
 
         $output->writeln(Yaml::dump(array('group' => $data), 2));
+
+        $data = array();
+
+        //users
+        foreach ($this->em->getRepository('CmsAuthentication:User')->findAll() as $user) {
+            /* @var $user User */
+            $name = $this->registerEntity($user);
+
+            $data[$name] = array(
+                'name' => $user->getName(),
+                'login' => $user->getLogin(),
+                'plainPassword' => $user->getPassword(),
+                'salt' => $user->getSalt(),
+                'email' => $user->getEmail(),
+                'active' => $user->isActive(),
+                'group' => $this->findEntity($user->getGroup()),
+                'roles' => $user->getRoles()
+            );
+        }
+
+        $output->writeln(Yaml::dump(array('user' => $data), 3));
+    }
+
+    protected function findEntity($entity)
+    {
+        $class = get_class($entity);
+
+        if (!isset($this->entityAliasMap[$class])) {
+            throw new \Exception(sprintF('Entity "%s" is not known', $class));
+        }
+
+        $alias = $this->entityAliasMap[$class];
+
+        foreach ($this->entityMap[$alias] as $name => $object) {
+            if ($object == $entity) {
+                return $name;
+            }
+        }
+
+        throw new \Exception(sprintf('Referenced entity of class "%s" was not found', $class));
     }
 
     protected function registerEntity($entity)
@@ -81,12 +123,22 @@ class DumpFixturesCommand extends AbstractCommand
             case 'group':
                 $name = $entity->getName();
                 break;
+            case 'user':
+                $name = $this->cleanupName($entity->getName());
+                break;
             default:
                 throw new \Exception(sprintf('Can not resolve entity name for class "%s"', $class));
                 break;
         }
 
         $this->entityMap[$alias][$name] = $entity;
+
+        return $name;
+    }
+
+    protected function cleanupName($name)
+    {
+        $name = preg_replace('/[^a-z]/i', '_', $name);
 
         return $name;
     }

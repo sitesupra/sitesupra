@@ -195,7 +195,11 @@ class LoadFixturesCommand extends AbstractCommand
 
         $user->setName($data['name']);
         $user->setLogin($data['login']);
-        $user->setPassword($encoder->encodePassword($data['password'], $user->getSalt()));
+        $user->setPassword(
+            isset($data['password']) ?
+                $encoder->encodePassword($data['password'], $user->getSalt()) :
+                $data['plainPassword']
+            );
         $user->setEmail($data['email']);
         $user->setActive($data['active']);
         $user->setGroup($this->resolveEntity('group', $data['group']));
