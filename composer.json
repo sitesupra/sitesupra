@@ -8,7 +8,8 @@
             "email": "info@sitesupra.com"
         }
     ],
-    "minimum-stability": "stable",
+    "minimum-stability": "dev",
+    "prefer-stable": true,
     "require": {
         "doctrine/common": "2.4.*",
         "doctrine/dbal": "2.4.*",
@@ -34,13 +35,13 @@
         "monolog/monolog": "1.*",
         "nelmio/alice": "1.*",
         "myclabs/deep-copy": "*",
-        "simplethings/entity-audit-bundle": "dev-master@dev",
+        "simplethings/entity-audit-bundle": "dev-master",
         "gedmo/doctrine-extensions": "v2.3.9",
-        "dereuromark/media-embed": "dev-master@dev"
+        "dereuromark/media-embed": "dev-master"
     },
     "autoload": {
         "psr-0": {
-            "Supra\\": "lib"
+            "Supra\\": "lib/"
         }
     },
     "config": {
