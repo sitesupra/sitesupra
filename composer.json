@@ -34,9 +34,9 @@
         "monolog/monolog": "1.*",
         "nelmio/alice": "1.*",
         "myclabs/deep-copy": "*",
-        "simplethings/entity-audit-bundle": "dev-master",
+        "simplethings/entity-audit-bundle": "dev-master@dev",
         "gedmo/doctrine-extensions": "v2.3.9",
-        "dereuromark/media-embed": "@dev"
+        "dereuromark/media-embed": "dev-master@dev"
     },
     "autoload": {
         "psr-0": {
