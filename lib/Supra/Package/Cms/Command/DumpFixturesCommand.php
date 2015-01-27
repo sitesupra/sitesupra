@@ -23,8 +23,11 @@ namespace Supra\Package\Cms\Command;
 
 use Doctrine\ORM\EntityManager;
 use Supra\Core\Console\AbstractCommand;
+use Supra\Package\Cms\Entity\Image;
+use Supra\Package\Cms\Entity\Template;
 use Supra\Package\CmsAuthentication\Entity\Group;
 use Supra\Package\CmsAuthentication\Entity\User;
+use Symfony\Component\Console\Input\InputArgument;
 use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Output\OutputInterface;
 use Symfony\Component\Yaml\Yaml;
@@ -40,12 +43,14 @@ class DumpFixturesCommand extends AbstractCommand
 
     protected $entityAliasMap = array(
         'Supra\Package\CmsAuthentication\Entity\Group' => 'group',
-        'Supra\Package\CmsAuthentication\Entity\User' => 'user'
+        'Supra\Package\CmsAuthentication\Entity\User' => 'user',
+        'Supra\Package\Cms\Entity\Template' => 'template'
     );
 
     protected function configure()
     {
         $this->setName('supra:fixtures:dump')
+            ->addArgument('folder', InputArgument::OPTIONAL, 'Target folder, files will not be saved unless it is specified')
             ->setDescription('Dumps fixtures from database');
     }
 
@@ -54,9 +59,17 @@ class DumpFixturesCommand extends AbstractCommand
         $this->em = $this->container->getDoctrine()->getManager();
         /* @var $em EntityManager */
 
-        $data = array();
+        $targetFolder = $input->getArgument('folder');
+
+        if ($targetFolder && !is_dir($targetFolder)) {
+            throw new \Exception(sprintf('You have specified "%s" as a target folder but it does not exist', $targetFolder));
+        }
+
+        $yaml = '';
 
         //groups
+        $data = array();
+
         foreach ($this->em->getRepository('CmsAuthentication:Group')->findAll() as $group) {
             /* @var $group Group */
             $name = $this->registerEntity($group);
@@ -64,11 +77,11 @@ class DumpFixturesCommand extends AbstractCommand
             $data[$name] = array('name' => $group->getName(), 'isSuper' => $group->isSuper());
         }
 
-        $output->writeln(Yaml::dump(array('group' => $data), 2));
-
-        $data = array();
+        $yaml .= Yaml::dump(array('group' => $data), 2);
 
         //users
+        $data = array();
+
         foreach ($this->em->getRepository('CmsAuthentication:User')->findAll() as $user) {
             /* @var $user User */
             $name = $this->registerEntity($user);
@@ -85,7 +98,46 @@ class DumpFixturesCommand extends AbstractCommand
             );
         }
 
-        $output->writeln(Yaml::dump(array('user' => $data), 3));
+        $yaml .= Yaml::dump(array('user' => $data), 3);
+
+        //templates
+        $data = array();
+
+        foreach ($this->em->getRepository('Cms:Template')->findAll() as $template) {
+            $name = $this->registerEntity($template);
+            /* @var $template Template */
+
+            $tpl = array(
+                'media' => 'screen',
+                'layoutName' => $template->getTemplateLayouts()['screen']->getLayoutName(),
+                'localizations' => array()
+            );
+
+            foreach ($template->getLocalizations() as $locale => $localization) {
+                $tpl['localizations'][$locale] = $localization->getTitle();
+            }
+
+            $data[$name] = $tpl;
+        }
+
+        $yaml .= Yaml::dump(array('template' => $data), 3);
+
+        //images
+        $data = array();
+
+        foreach ($this->em->getRepository('Cms:Image')->findAll() as $image) {
+            /* @var $image Image */
+
+            $data[] = $image;
+        }
+
+        $yaml .= Yaml::dump(array('image' => $data), 3);
+
+        $output->writeln($yaml);
+
+        if ($targetFolder) {
+            file_put_contents($targetFolder . DIRECTORY_SEPARATOR . 'fixtures.yml', $yaml);
+        }
     }
 
     protected function findEntity($entity)
@@ -126,9 +178,17 @@ class DumpFixturesCommand extends AbstractCommand
             case 'user':
                 $name = $this->cleanupName($entity->getName());
                 break;
-            default:
-                throw new \Exception(sprintf('Can not resolve entity name for class "%s"', $class));
+            case 'template':
+                $layouts = $entity->getTemplateLayouts();
+                if (!isset($layouts['screen'])) {
+                    throw new \Exception(sprintf('Template "%s" does not have a "screen" layout', $entity->getId()));
+                }
+                $name = $this->cleanupName($layouts['screen']->getLayoutName());
                 break;
+        }
+
+        if (is_null($name)) {
+            throw new \Exception(sprintf('Can not resolve entity name for class "%s"', $class));
         }
 
         $this->entityMap[$alias][$name] = $entity;
