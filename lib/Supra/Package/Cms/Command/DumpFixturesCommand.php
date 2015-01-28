@@ -24,6 +24,8 @@ namespace Supra\Package\Cms\Command;
 use Doctrine\ORM\EntityManager;
 use Supra\Core\Console\AbstractCommand;
 use Supra\Package\Cms\Entity\Image;
+use Supra\Package\Cms\Entity\Page;
+use Supra\Package\Cms\Entity\PageLocalization;
 use Supra\Package\Cms\Entity\Template;
 use Supra\Package\CmsAuthentication\Entity\Group;
 use Supra\Package\CmsAuthentication\Entity\User;
@@ -44,7 +46,10 @@ class DumpFixturesCommand extends AbstractCommand
     protected $entityAliasMap = array(
         'Supra\Package\CmsAuthentication\Entity\Group' => 'group',
         'Supra\Package\CmsAuthentication\Entity\User' => 'user',
-        'Supra\Package\Cms\Entity\Template' => 'template'
+        'Supra\Package\Cms\Entity\Template' => 'template',
+        'Supra\Package\Cms\Entity\Image' => 'image',
+        'Supra\Package\Cms\Entity\Page' => 'page',
+        'Supra\Package\Cms\Entity\PageLocalization' => 'pageLocalization'
     );
 
     protected function configure()
@@ -125,13 +130,61 @@ class DumpFixturesCommand extends AbstractCommand
         //images
         $data = array();
 
+        $filesDir = $targetFolder.DIRECTORY_SEPARATOR.'/files';
+
+        if (!is_dir($filesDir)) {
+            mkdir($filesDir);
+        }
+
         foreach ($this->em->getRepository('Cms:Image')->findAll() as $image) {
             /* @var $image Image */
 
-            $data[] = $image;
+            $name = $this->registerEntity($image);
+
+            $outputFile = realpath($filesDir) . DIRECTORY_SEPARATOR . $image->getId() . '_' . $image->getFileName();
+
+            $data[$name] = array(
+                'name' => $name,
+                'fileName' => $outputFile
+            );
+
+            copy($this->container->getParameter('directories.web').'/files/'.$image->getFileName(), $outputFile);
         }
 
         $yaml .= Yaml::dump(array('image' => $data), 3);
+
+        //pages
+        $data = array();
+
+        foreach ($this->em->getRepository('Cms:Page')->findAll() as $page) {
+            /* @var $page Page */
+
+            $name = $this->registerEntity($page);
+
+            $data[$name] = array(
+                'children' => array()
+            );
+        }
+
+        $yaml .= Yaml::dump(array('page' => $data), 3);
+
+        $data = array();
+
+        foreach ($this->em->getRepository('Cms:PageLocalization')->findAll() as $localization) {
+            /* @var $localization PageLocalization */
+
+            $name = $this->registerEntity($localization);
+
+            $data[$name] = array(
+                'locale' => $localization->getLocale(),
+                'page' => $this->getEntityName($localization->getPage(), 'page'),
+                'template' => $this->getEntityName($localization->getTemplate(), 'template'),
+                'pathPart' => $localization->getPathPart(),
+                'title' => $localization->getTitle()
+            );
+        }
+
+        $yaml .= Yaml::dump(array('pageLocalization' => $data), 3);
 
         $output->writeln($yaml);
 
@@ -169,6 +222,15 @@ class DumpFixturesCommand extends AbstractCommand
 
         $alias = $this->entityAliasMap[$class];
 
+        $name = $this->getEntityName($entity, $alias);
+
+        $this->entityMap[$alias][$name] = $entity;
+
+        return $name;
+    }
+
+    protected function getEntityName($entity, $alias)
+    {
         $name = null;
 
         switch ($alias) {
@@ -185,13 +247,20 @@ class DumpFixturesCommand extends AbstractCommand
                 }
                 $name = $this->cleanupName($layouts['screen']->getLayoutName());
                 break;
+            case 'image':
+                $name = $entity->getId() . '_' . $this->cleanupName($entity->getFileName());
+                break;
+            case 'page':
+                $name = $this->cleanupName($entity->getLocalizations()->first()->getTitle());
+                break;
+            case 'pageLocalization':
+                $name = $this->getEntityName($entity->getPage(), 'page') . '_' . $entity->getLocale();
+                break;
         }
 
         if (is_null($name)) {
-            throw new \Exception(sprintf('Can not resolve entity name for class "%s"', $class));
+            throw new \Exception(sprintf('Can not resolve entity name for class "%s"', get_class($entity)));
         }
-
-        $this->entityMap[$alias][$name] = $entity;
 
         return $name;
     }
@@ -199,6 +268,8 @@ class DumpFixturesCommand extends AbstractCommand
     protected function cleanupName($name)
     {
         $name = preg_replace('/[^a-z]/i', '_', $name);
+
+        $name = strtolower($name);
 
         return $name;
     }
