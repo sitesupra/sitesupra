@@ -53,10 +53,6 @@ class InlineMapFilter implements FilterInterface
 		$tag->forceTwoPartTag(true);
 
 		$tag->setAttributes(array(
-			'class'					=> 'map',
-			'data-refresh-event'	=> 'googleMap',
-			'data-require'			=> 'plugins/blocks/google-map',
-			'data-attach'			=> '$.fn.googleMap',
 			'data-latitude'			=> $mapData['latitude'],
 			'data-longitude'		=> $mapData['longitude'],
 			'data-zoom'				=> $mapData['zoom'],
