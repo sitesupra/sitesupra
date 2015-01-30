@@ -66,7 +66,9 @@ class ImageFilter implements FilterInterface, BlockPropertyAware, ContainerAware
 				$image = $fileStorage->findImage($imageId);
 
 				if ($image) {
-					return new ImageTag($image, $fileStorage);
+					$tag = new ImageTag($image, $fileStorage);
+					$tag->setAttribute('alt', $element->getAlternateText());
+					return $tag;
 				}
 			}
 		}

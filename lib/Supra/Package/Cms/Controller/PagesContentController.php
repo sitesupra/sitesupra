@@ -214,6 +214,8 @@ class PagesContentController extends AbstractPagesController
 		$this->getEntityManager()
 				->flush($localization);
 
+		$this->unlockPage();
+
 		$currentRevision = $auditReader->getCurrentRevision($localization::CN(), $localization->getId());
 
 		$this->getEntityManager()->createQuery(sprintf(

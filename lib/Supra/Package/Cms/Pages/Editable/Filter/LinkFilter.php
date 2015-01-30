@@ -84,7 +84,8 @@ class LinkFilter implements FilterInterface, BlockPropertyAware, ContainerAware
 						->setAttribute('class', $element->getClassName())
 				;
 
-				if (($target = $element->getTarget()) !== null) {
+				$target = $element->getTarget();
+				if (! empty($target)) {
 					$tag->setAttribute('target', $target);
 				}
 

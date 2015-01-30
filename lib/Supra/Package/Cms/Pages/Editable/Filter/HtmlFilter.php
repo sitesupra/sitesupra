@@ -135,11 +135,15 @@ class HtmlFilter implements FilterInterface, BlockPropertyAware, ContainerAware
 				$this->container->getLocaleManager()->getCurrentLocale()
 		);
 
-		$tag->setAttribute('target', $link->getTarget())
-				->setAttribute('title', $title)
+		$tag->setAttribute('title', $title)
 				->setAttribute('href', $url)
 				->setAttribute('class', $link->getClassName())
 		;
+
+		$target = $link->getTarget();
+		if (! empty($target)) {
+			$tag->setAttribute('target', $target);
+		}
 
 		switch ($link->getResource()) {
 			case LinkReferencedElement::RESOURCE_FILE:
