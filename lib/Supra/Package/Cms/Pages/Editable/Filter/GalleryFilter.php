@@ -25,7 +25,10 @@ use Supra\Core\DependencyInjection\ContainerAware;
 use Supra\Core\DependencyInjection\ContainerInterface;
 use Supra\Package\Cms\Editable\Filter\FilterInterface;
 use Supra\Package\Cms\Entity\BlockProperty;
+use Supra\Package\Cms\Entity\Image;
 use Supra\Package\Cms\Entity\ReferencedElement\ImageReferencedElement;
+use Supra\Package\Cms\FileStorage\Exception\FileStorageException;
+use Supra\Package\Cms\FileStorage\Exception\RuntimeException;
 use Supra\Package\Cms\Pages\Editable\BlockPropertyAware;
 
 class GalleryFilter implements FilterInterface, BlockPropertyAware, ContainerAware
@@ -71,21 +74,45 @@ class GalleryFilter implements FilterInterface, BlockPropertyAware, ContainerAwa
 				continue;
 			}
 
-			$imageWebPath = $fileStorage->getWebPath($image, $element->getSizeName());
+			$previewSize = $image->getImageSize($element->getSizeName());
 
-			// @FIXME:
-			$fullSizeWebPath = null;
+			if ($previewSize === null) {
+				continue;
+			}
+
+			$previewUrl = $fileStorage->getWebPath($image, $previewSize);
+
+			$crop = isset($options['fullSizeCrop']) ? (bool) $options['fullSizeCrop'] : true;
+
+			$fullSizeWidth = ! empty($options['fullSizeMaxWidth']) ? (int) $options['fullSizeMaxWidth'] : null;
+			$fullSizeHeight = ! empty($options['fullSizeMaxHeight']) ? (int) $options['fullSizeMaxWidth'] : null;
+
+			try {
+
+				list($width, $height) = $this->getFullSizeDimensions($image, $fullSizeWidth, $fullSizeHeight, $crop);
+				$fullSizeName = $fileStorage->createResizedImage($image, $width, $height, $crop);
+
+			} catch (FileStorageException $e) {
+				$this->container->getLogger()->warn($e->getMessage());
+				continue;
+			}
+
+			$fullSize = $image->getImageSize($fullSizeName);
+			$fullSizeUrl = $fileStorage->getWebPath($image, $fullSize);
 
 			$itemData = array(
-				'image' 		=> '<img src="' . $imageWebPath . '" alt="' . $element->getAlternateText() . '" />',
-				'imageUrl' 		=> $imageWebPath,
-				'imageFullSizeUrl' => $fullSizeWebPath,
+				'image' 		=> '<img src="' . $previewUrl . '" alt="' . $element->getAlternateText() . '" />',
+				'imageUrl' 		=> $previewUrl,
 				'title' 		=> $element->getTitle(),
 				'description' 	=> $element->getDescription(),
+
+				'fullSizeUrl' 	=> $fullSizeUrl,
+				'fullSizeWidth' => $fullSize->getWidth(),
+				'fullSizeHeight' => $fullSize->getHeight(),
 			);
 
 			$output .= preg_replace_callback(
-				'/{{\s*(image|title|description)\s*}}/',
+				'/{{\s*(image|title|description|fullSizeUrl|fullSizeWidth|fullSizeHeight)\s*}}/',
 				function ($matches) use ($itemData) {
 					return $itemData[$matches[1]];
 				},
@@ -110,5 +137,38 @@ class GalleryFilter implements FilterInterface, BlockPropertyAware, ContainerAwa
 	public function setContainer(ContainerInterface $container)
 	{
 		$this->container = $container;
+	}
+
+	/**
+	 * @param Image $image
+	 * @param int|null $targetWidth
+	 * @param int|null $targetHeight
+	 * @param bool $crop
+	 * @return array
+	 */
+	private function getFullSizeDimensions(Image $image, $targetWidth = null, $targetHeight = null, $crop)
+	{
+		if ($targetWidth === null && $targetHeight === null) {
+			$width = $image->getWidth();
+			$height = $image->getHeight();
+		} else if ($targetWidth === null) {
+			$width = $image->getWidth();
+			$height = $targetHeight;
+		} else if ($targetHeight === null) {
+			$width = $targetWidth;
+			$height = $image->getHeight();
+		}
+
+		$wRatio = max($image->getWidth() / $width, 1);
+		$hRatio = max($image->getHeight() / $height, 1);
+
+		if (! $crop) {
+			$wRatio = $hRatio = max($wRatio, $hRatio);
+		}
+
+		$width = round($image->getWidth() / $wRatio);
+		$height = round($image->getHeight() / $hRatio);
+
+		return array($width, $height);
 	}
 }
