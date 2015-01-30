@@ -204,9 +204,12 @@ class HtmlFilter implements FilterInterface, BlockPropertyAware, ContainerAware
 
 		$align = $imageData->getAlign();
 		if (!empty($align)) {
-			$tag->addClass('align-' . $align);
-
-			if ($align === 'middle') {
+			if ($align === 'left') {
+				$tag->addClass('pull-left');
+			} else if ($align === 'right') {
+				$tag->addClass('pull-right');
+			} else if ($align === 'center') {
+				$tag->addClass('center-block');
 				$tag->setAttribute('style', "width: {$width}px;");
 			}
 		}
