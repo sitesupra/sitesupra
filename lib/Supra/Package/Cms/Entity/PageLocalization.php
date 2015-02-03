@@ -111,8 +111,7 @@ class PageLocalization extends Abstraction\Localization
 	{
 		parent::__construct($locale);
 
-		$this->path = new PageLocalizationPath($this);
-		$this->path->setLocale($locale);
+		$this->path = new PageLocalizationPath($this->getId(), $locale);
 
 		$this->resetCreationTime();
 
@@ -176,7 +175,7 @@ class PageLocalization extends Abstraction\Localization
 	 * @param Path $path
 	 * @param boolean $active
 	 */
-	public function setPath(Path $path = null, $active = true, $limited = false, $inSitemap = true)
+	public function setPathData(Path $path = null, $active = true, $limited = false, $inSitemap = true)
 	{
 //		\Log::debug('QQQ: ', $this->getId(), ' - ', $this->getPathEntity()->isVisibleInSitemap(), ' --> ', $inSitemap);
 
@@ -248,8 +247,7 @@ class PageLocalization extends Abstraction\Localization
 	public function getPathEntity()
 	{
 		if (is_null($this->path)) {
-			$this->path = new PageLocalizationPath($this);
-			$this->path->setLocale($this->locale);
+			$this->path = new PageLocalizationPath($this->getId(), $this->getLocaleId());
 		}
 
 		return $this->path;
@@ -442,7 +440,7 @@ class PageLocalization extends Abstraction\Localization
 		if (! empty($this->id)) {
 			$this->resetCreationTime();
 
-			$this->path = new PageLocalizationPath($this);
+			$this->path = new PageLocalizationPath($this->getId(), $this->getLocaleId());
 		}
 	}
 

@@ -70,12 +70,13 @@ class PageLocalizationPath extends Abstraction\Entity
 
 	/**
 	 * Path entity and owner localization ids are equals
-	 * @param PageLocalization $localization
+	 * @param string $id
+	 * @param string $localeId
 	 */
-	public function __construct(PageLocalization $localization)
+	public function __construct($id, $localeId)
 	{
-		$this->id = $localization->getId();
-		$this->locale = $localization->getLocaleId();
+		$this->id = $id;
+		$this->locale = $localeId;
 	}
 
 	/**
