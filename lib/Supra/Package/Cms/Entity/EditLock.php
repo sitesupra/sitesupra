@@ -21,9 +21,6 @@
 
 namespace Supra\Package\Cms\Entity;
 
-use Symfony\Component\Security\Core\User\UserInterface;
-use Supra\Package\Cms\Entity\Abstraction\Localization;
-
 /**
  * @Entity(readOnly=true)
  */
@@ -52,23 +49,6 @@ class EditLock extends Abstraction\Entity implements Abstraction\TimestampableIn
 	 * @var string
 	 */
 	protected $localizationRevision;
-
-	/**
-	 * @param UserInterface $user
-	 * @param Localization $localization
-	 */
-	public function __construct(
-			UserInterface $user,
-			Localization $localization,
-			$localizationRevision
-	) {
-		parent::__construct();
-		
-		$this->userName = $user->getUsername();
-		$this->localizationRevision = $localizationRevision;
-
-		$localization->setLock($this);
-	}
 
 	/**
 	 * Returns creation time.
@@ -124,6 +104,14 @@ class EditLock extends Abstraction\Entity implements Abstraction\TimestampableIn
 	}
 
 	/**
+	 * @param string $userName
+	 */
+	public function setUserName($userName)
+	{
+		$this->userName = $userName;
+	}
+
+	/**
 	 * Returns localization revision on the lock creation moment.
 	 *
 	 * @return string
@@ -131,5 +119,13 @@ class EditLock extends Abstraction\Entity implements Abstraction\TimestampableIn
 	public function getLocalizationRevision()
 	{
 		return $this->localizationRevision;
+	}
+
+	/**
+	 * @param int $localizationRevision
+	 */
+	public function setLocalizationRevision($localizationRevision)
+	{
+		$this->localizationRevision = $localizationRevision;
 	}
 }

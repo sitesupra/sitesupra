@@ -259,7 +259,7 @@ class PagePathGeneratorListener implements EventSubscriber, ContainerAware
 				}
 
 				// Validation passed, set the new path
-				$pageData->setPath($newPath, $active, $limited, $inSitemap);
+				$pageData->setPathData($newPath, $active, $limited, $inSitemap);
 				if ( ! is_null($suffix)) {
 					$pageData->setTitle($pageData->getTitle() . " ($suffix)");
 				}
@@ -271,19 +271,19 @@ class PagePathGeneratorListener implements EventSubscriber, ContainerAware
 			// Root page
 			if ( ! $newPath->equals($oldPath)) {
 				$changes = true;
-				$pageData->setPath($newPath, $active, $limited, $inSitemap);
+				$pageData->setPathData($newPath, $active, $limited, $inSitemap);
 			}
 			// Another root page...
 		} else {
 			$newPath = null;
 			$active = false;
-			$pageData->setPath($newPath, $active, $limited, $inSitemap);
+			$pageData->setPathData($newPath, $active, $limited, $inSitemap);
 		}
 
 		if ($oldPathEntity->isActive() !== $active
 				|| $oldPathEntity->isVisibleInSitemap() != $inSitemap) {
 
-			$pageData->setPath($newPath, $active, $limited, $inSitemap);
+			$pageData->setPathData($newPath, $active, $limited, $inSitemap);
 			$changes = true;
 		}
 

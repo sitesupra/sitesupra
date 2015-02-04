@@ -477,7 +477,10 @@ abstract class AbstractPagesController extends AbstractCmsController
 		$currentRevision = $this->getAuditReader()
 				->getCurrentRevision($localization::CN(), $localization->getId());
 
-		$lock = new EditLock($user, $localization, $currentRevision);
+		$lock = new EditLock();
+
+		$lock->setUserName($user->getUsername());
+		$lock->setLocalizationRevision($currentRevision);
 
 		$entityManager = $this->getEntityManager();
 
