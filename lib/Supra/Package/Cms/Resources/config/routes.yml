@@ -97,6 +97,11 @@ routes:
         controller:					Cms:PagesPage:saveSettings
         options:
             frontend:       true
+    cms_pages_page_path_info:
+            pattern:                    %cms.prefix%/content-manager/page/path-info
+            controller:			        Cms:PagesPage:pathInfo
+            options:
+                frontend:   true
     cms_pages_template_create:
         pattern:						%cms.prefix%/content-manager/template/create
         controller:					Cms:PagesTemplate:create
