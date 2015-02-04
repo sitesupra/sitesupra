@@ -23,6 +23,7 @@ namespace Supra\Package\Cms\Controller;
 
 use Doctrine\ORM\EntityManager;
 use Supra\Core\HttpFoundation\SupraJsonResponse;
+use Supra\Core\Locale\LocaleInterface;
 use Supra\Package\Cms\Pages\Exception\DuplicatePagePathException;
 use Supra\Package\Cms\Exception\CmsException;
 use Supra\Package\Cms\Entity\Abstraction\Entity;
@@ -34,6 +35,7 @@ use Supra\Package\Cms\Entity\ApplicationPage;
 use Supra\Package\Cms\Entity\RedirectTargetChild;
 use Supra\Package\Cms\Entity\RedirectTargetPage;
 use Supra\Package\Cms\Entity\RedirectTargetUrl;
+use Supra\Package\Cms\Uri\Path;
 
 class PagesPageController extends AbstractPagesController
 {
@@ -507,6 +509,63 @@ class PagesPageController extends AbstractPagesController
 		return new SupraJsonResponse(
 				$this->convertPageToArray($copiedPage, $this->getCurrentLocale()->getId())
 		);
+	}
+
+	/**
+	 * @return SupraJsonResponse
+	 */
+	public function pathInfoAction()
+	{
+		$input = $this->getRequestInput();
+
+		$pathString = $input->get('page_path');
+		$pathString = trim(parse_url($pathString, PHP_URL_PATH), '/');
+
+		$path = new Path($pathString);
+		$localeId = null;
+
+		foreach ($this->getLocaleManager()->getLocales() as $locale) {
+			/* @var $locale LocaleInterface */
+
+			$pathPrefix = new Path($locale->getId());
+
+			if ($path->startsWith($pathPrefix)) {
+				$path->setBasePath($pathPrefix);
+				$localeId = $locale->getId();
+				break;
+			}
+		}
+
+		$localeId = $localeId ?: $input->get('locale');
+
+		$pathData = array();
+
+		$localization = $this->getEntityManager()->createQuery(
+			'SELECT l FROM Cms:PageLocalization l JOIN l.path p
+					WHERE p.path = :path AND l.locale = :locale')
+			->setParameters(array(
+				'path' 		=> $path->getPath(Path::FORMAT_NO_DELIMITERS),
+				'locale' 	=> $localeId,
+			))->getOneOrNullResult();
+
+		if ($localization) {
+			/* @var $localization PageLocalization */
+			$pathData = array(
+				'locale' => $localeId,
+				'page_id' => $localization->getId(),
+			);
+
+			if (($redirectTarget = $localization->getRedirectTarget()) instanceof RedirectTargetPage) {
+				/* @var $redirectTarget RedirectTargetPage */
+				$targetPage = $redirectTarget->getTargetPage();
+
+				if ($targetPage && ($targetPage->getLocalization($localeId) !== null)) {
+					$pathData['redirect_page_id'] = $targetPage->getLocalization($localeId)->getId();
+				}
+			}
+		}
+
+		return new SupraJsonResponse($pathData);
 	}
 
 	/**
