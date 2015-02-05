@@ -64,19 +64,11 @@
 }
 
 /*
- * Active item
- */
-.supra-itemmanager-active {
-	min-height: 1.5em;
-	outline: 2px solid #00A5F8 !important;
-}
-
-/*
  * Inline editable styles
  */
 .editing {
 	.su-content-inline {
-		outline: none !important;
+		outline: none;
 	}
 	.su-input-inline-image {
 		display: inline-block;
@@ -97,6 +89,18 @@
 	}
 	.su-input-inline-image {
 		cursor: pointer;
+	}
+}
+
+/*
+ * Active item
+ */
+.supra-itemmanager-active {
+	min-height: 1.5em;
+	//outline: 2px solid #00A5F8 !important;
+	
+	.su-content-inline {
+		outline: 2px dashed #00A5F8;
 	}
 }
 
