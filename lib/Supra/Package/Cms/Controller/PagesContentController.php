@@ -22,6 +22,8 @@
 namespace Supra\Package\Cms\Controller;
 
 use Supra\Package\Cms\Editable\Exception\TransformationFailedException;
+use Supra\Package\Cms\Entity\Abstraction\PlaceHolder;
+use Supra\Package\Cms\Entity\TemplatePlaceHolder;
 use Supra\Package\Cms\Pages\PageExecutionContext;
 use Symfony\Component\HttpFoundation\Response;
 use Supra\Core\HttpFoundation\SupraJsonResponse;
@@ -463,6 +465,51 @@ class PagesContentController extends AbstractPagesController
 
 		return new SupraJsonResponse();
 	}
+
+	public function savePlaceHolderAction()
+	{
+		$this->isPostRequest();
+		$this->checkLock();
+
+		$localization = $this->getPageLocalization();
+
+		if (! $localization instanceof TemplateLocalization) {
+			throw new \UnexpectedValueException(sprintf(
+				'Expecting TemplateLocalization only, got [%s].', get_class($localization)
+			));
+		}
+
+		$name = $this->getRequestInput()->get('place_holder_id');
+
+		if (empty($name)) {
+			throw new \UnexpectedValueException('Name cannot be empty.');
+		}
+
+		$pageRequest = $this->createPageRequest($localization);
+
+		$placeHolder = $pageRequest->getPlaceHolderSet()->getFinalPlaceHolders()->getLastByName($name);
+
+		if (! $placeHolder instanceof PlaceHolder) {
+			throw new CmsException(null, sprintf(
+				'Placeholder [%s] not found.', $name
+			));
+		}
+
+		if (! $placeHolder instanceof TemplatePlaceHolder) {
+			throw new CmsException(null, sprintf(
+				'Not possible to change locked status for page placeholder.'
+			));
+		}
+
+		$locked = $this->getRequestInput()->filter('locked', null, false, FILTER_VALIDATE_BOOLEAN);
+
+		$placeHolder->setLocked($locked);
+
+		$this->getEntityManager()->flush();
+
+		return new SupraJsonResponse();
+	}
+
 
 	/**
 	 * @return SupraJsonResponse
