@@ -22,9 +22,8 @@
 namespace Supra\Package\DebugBar;
 
 use DebugBar\Bridge\DoctrineCollector;
-use DebugBar\Bridge\SwiftMailer\SwiftLogCollector;
+//use DebugBar\Bridge\SwiftMailer\SwiftLogCollector;
 use DebugBar\Bridge\SwiftMailer\SwiftMailCollector;
-use DebugBar\DataCollector\PDO\PDOCollector;
 use DebugBar\StandardDebugBar;
 use Doctrine\DBAL\Logging\DebugStack;
 use Supra\Core\DependencyInjection\ContainerInterface;
@@ -104,9 +103,11 @@ class SupraPackageDebugBar extends AbstractSupraPackage
 		//mail collectors
 		foreach ($this->container->getParameter('mailer.mailers') as $id) {
 			$this->container->extend($id, function ($mailer, $container) {
-				$container['debug_bar.debug_bar']['messages']->aggregate(
-					new SwiftLogCollector($mailer)
-				);
+
+//				$container['debug_bar.debug_bar']['messages']->aggregate(
+//					new SwiftLogCollector($mailer)
+//				);
+
 				$container['debug_bar.debug_bar']->addCollector(
 					new SwiftMailCollector($mailer)
 				);

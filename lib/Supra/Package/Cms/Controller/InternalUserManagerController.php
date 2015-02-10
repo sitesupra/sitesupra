@@ -124,7 +124,7 @@ class InternalUserManagerController extends Controller
 
 		$this->container->getMailer()->send($message);
 
-		$this->checkActionPermission($user->getGroup(), Group::PERMISSION_MODIFY_USER_NAME);
+//		$this->checkActionPermission($user->getGroup(), Group::PERMISSION_MODIFY_USER_NAME);
 
 		return new SupraJsonResponse(null);
 	}
@@ -154,7 +154,7 @@ class InternalUserManagerController extends Controller
 			throw new CmsException(null, 'Can\'t find user with such id');
 		}
 
-		$this->checkActionPermission($user->getGroup(), Group::PERMISSION_MODIFY_USER_NAME);
+//		$this->checkActionPermission($user->getGroup(), Group::PERMISSION_MODIFY_USER_NAME);
 
 		$this->container->getDoctrine()->getManager()->remove($user);
 		$this->container->getDoctrine()->getManager()->flush();
@@ -171,7 +171,7 @@ class InternalUserManagerController extends Controller
 		$user = $this->getUserOrGroup($request->request->get('user_id'));
 
 		if ($user->getId() != $this->getUser()->getId()) {
-			$this->checkActionPermission($user->getGroup(), Group::PERMISSION_MODIFY_USER_NAME);
+//			$this->checkActionPermission($user->getGroup(), Group::PERMISSION_MODIFY_USER_NAME);
 		}
 
 		//TODO: temporary solution for groups, don't save anything
@@ -206,7 +206,7 @@ class InternalUserManagerController extends Controller
 		$user = $this->getUserOrGroup($request->query->get('user_id'));
 
 		if ($user->getId() != $this->getUser()->getId()) {
-			$this->checkActionPermission($user->getGroup(), Group::PERMISSION_MODIFY_USER_NAME);
+//			$this->checkActionPermission($user->getGroup(), Group::PERMISSION_MODIFY_USER_NAME);
 		}
 
 		$response = $this->userToArray($user);
@@ -283,7 +283,7 @@ class InternalUserManagerController extends Controller
 		$groupName = $this->dummyGroupIdToGroupName($dummyGroupId);
 		$group = $this->container->getDoctrine()->getRepository('CmsAuthentication:Group')->findOneByName($groupName);
 
-		$this->checkActionPermission($group, Group::PERMISSION_MODIFY_USER_NAME);
+//		$this->checkActionPermission($group, Group::PERMISSION_MODIFY_USER_NAME);
 
 		$user = new User();
 
