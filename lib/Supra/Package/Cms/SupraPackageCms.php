@@ -29,6 +29,7 @@ use Supra\Core\Locale\LocaleManager;
 use Supra\Core\Locale\Detector\ParameterDetector;
 use Supra\Package\Cms\Command\DumpFixturesCommand;
 use Supra\Package\Cms\Command\LoadFixturesCommand;
+use Supra\Package\Cms\FileStorage\ImageProcessor\Adapter\Gd2Adapter;
 use Supra\Package\Cms\FileStorage\Validation\ExtensionUploadFilter;
 use Supra\Package\Cms\Application\CmsDashboardApplication;
 use Supra\Package\Cms\Application\CmsInternalUserManagerApplication;
@@ -243,7 +244,15 @@ class SupraPackageCms extends AbstractSupraPackage
 			$storage->addFolderUploadFilter($fileNameFilter);
 			$storage->addFolderUploadFilter($existingFileNameFilter);
 
-			$imageProcessorAdapter = new ImageMagickAdapter();
+			// @TODO: this should be configurable.
+			if (ImageMagickAdapter::isAvailable()) {
+				$imageProcessorAdapter = new ImageMagickAdapter();
+			} elseif (Gd2Adapter::isAvailable()) {
+				$imageProcessorAdapter = new Gd2Adapter();
+			} else {
+				throw new \RuntimeException('Missing for valid image processor.');
+			}
+
 			$imageProcessorAdapter->setFileStorage($storage);
 			$storage->setImageProcessorAdapter($imageProcessorAdapter);
 
