@@ -22,6 +22,8 @@
 namespace Supra\Package\Cms\Pages\Request;
 
 use Doctrine\ORM\Query;
+use Supra\Package\Cms\Entity\Template;
+use Supra\Package\Cms\Entity\TemplateLocalization;
 use Symfony\Component\Routing\Exception\ResourceNotFoundException;
 use Supra\Package\Cms\Entity\Abstraction\Localization;
 use Supra\Package\Cms\Entity\PageLocalization;
@@ -261,12 +263,33 @@ class PageRequestView extends PageRequest
 
 			foreach (parent::getPageSet() as $page) {
 
+				$revisionId = $localization->getPublishedRevision();
+
+				if ($page instanceof Template) {
+
+					$templateLocalization = $page->getLocalization($localization->getLocaleId());
+
+					if ($templateLocalization === null) {
+						throw new \RuntimeException(sprintf(
+							'Template [%s] from page structure set has no localization for [%s] locale.',
+							$page->getId(),
+							$localization->getLocaleId()
+						));
+					}
+
+					$revisions = $auditReader->findRevisions(TemplateLocalization::CN(), $templateLocalization->getId());
+
+					$lastRevision = array_shift($revisions);
+
+					$revisionId = $lastRevision->getRev();
+				}
+
 				$classMetadata = $entityManager->getClassMetadata($page::CN());
 
 				$pages[] = $auditReader->find(
 						$classMetadata->name,
 						$page->getId(),
-						$localization->getPublishedRevision()
+						$revisionId
 				);
 			}
 
