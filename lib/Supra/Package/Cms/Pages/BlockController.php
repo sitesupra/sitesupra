@@ -465,7 +465,8 @@ abstract class BlockController extends Controller
 		}
 		elseif ($editable instanceof Editable\Image) {
 
-			$filters[] = new Filter\ImageFilter();
+			$filters[] = $editable instanceof Editable\InlineImage
+				? new Filter\InlineImageFilter() : new Filter\ImageFilter();
 
 			if ($editable instanceof Editable\InlineImage
 					&& $this->request instanceof PageRequestEdit) {
