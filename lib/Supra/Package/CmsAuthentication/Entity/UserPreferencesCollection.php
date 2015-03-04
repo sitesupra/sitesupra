@@ -27,6 +27,8 @@ use Doctrine\Common\Collections;
 /**
  * Single user preferences collection
  * @Entity
+ *
+ * @deprecated
  */
 class UserPreferencesCollection extends Entity
 {

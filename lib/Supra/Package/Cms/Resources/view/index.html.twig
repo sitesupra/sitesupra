@@ -83,7 +83,7 @@
 				'user': {
 					'name': {{ supra.user.name | json_encode | raw }},
 					'login': {{ supra.user.login | json_encode | raw }},
-					'avatar_id': {{ supra.user.avatar | json_encode | raw }},
+					'avatar_id': null,
 					'id': {{ supra.user.id | json_encode | raw }},
 					'avatar': {{ supra.user.gravatarUrl(32) | json_encode | raw }}
 				},

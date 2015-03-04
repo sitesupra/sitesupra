@@ -27,6 +27,7 @@ use Supra\Package\CmsAuthentication\Entity\User;
 use Symfony\Component\Console\Helper\Table;
 use Symfony\Component\Console\Input\InputArgument;
 use Symfony\Component\Console\Input\InputInterface;
+use Symfony\Component\Console\Input\InputOption;
 use Symfony\Component\Console\Output\OutputInterface;
 
 class UsersAddCommand extends AbstractCommand
@@ -35,13 +36,11 @@ class UsersAddCommand extends AbstractCommand
 	{
 		$this->setName('users:add')
 			->setDescription('Adds users, provide --em to use different EntityManager')
-			->addOption('em', null, InputArgument::OPTIONAL, 'Entity manager name')
-			->addArgument('login', InputArgument::REQUIRED, 'Login to add (must be a valid e-mail address)')
-			->addArgument('password', InputArgument::REQUIRED, 'User\'s password')
-			->addOption('name', null, InputArgument::OPTIONAL, 'User\'s name')
-			->addOption('email', null, InputArgument::OPTIONAL, 'User\'s email')
-			->addOption('active', null, InputArgument::OPTIONAL, 'Active (true or false)')
-			->addOption('groups', null, InputArgument::OPTIONAL, 'Group names (currently only one)');
+			->addOption('em', null, InputOption::VALUE_OPTIONAL, 'Entity manager name')
+			->addArgument('email', 		InputArgument::REQUIRED, 'User\'s email')
+			->addArgument('password', 	InputArgument::REQUIRED, 'User\'s password')
+			->addArgument('name', 		InputArgument::OPTIONAL, 'User\'s name')
+			->addArgument('group',		InputArgument::OPTIONAL, 'Group name');
 	}
 
 	protected function execute(InputInterface $input, OutputInterface $output)
@@ -50,19 +49,30 @@ class UsersAddCommand extends AbstractCommand
 
 		$user = new User();
 
-		$user->setLogin($input->getArgument('login'));
-		$user->setName($input->getOption('name') ? $input->getOption('name') : $user->getLogin());
-		$user->setEmail($input->getOption('name') ? $input->getOption('name') : $user->getLogin());
+		$email = $input->getArgument('email');
+
+		if ($em->getRepository('CmsAuthentication:User')->findOneByEmail($email) !== null) {
+			throw new \Exception(sprintf('User with email [%s] already exists.', $email));
+		}
+
+		$user->setEmail($email);
 		$user->setEmailConfirmed(true);
+		$user->setActive(true);
+
+		$user->setLogin($email);
+
+		$user->setName($input->getArgument('name') ? $input->getArgument('name') : $user->getLogin());
+
 		$user->setRoles(array('ROLE_USER'));
 
-		if ($input->getOption('groups')) {
-			$group = $em->getRepository('CmsAuthentication:Group')->findOneByName($input->getOption('groups'));
+		if ($input->getArgument('group')) {
+
+			$group = $em->getRepository('CmsAuthentication:Group')->findOneByName($input->getArgument('group'));
 
 			if ($group) {
 				$user->setGroup($group);
 			} else {
-				throw new \Exception(sprintf('Group "%s" does not exist', $input->getOption('groups')));
+				throw new \Exception(sprintf('Group [%s] does not exist.', $input->getArgument('group')));
 			}
 		}
 
@@ -72,14 +82,84 @@ class UsersAddCommand extends AbstractCommand
 
 		$user->setPassword($encoded);
 
-		if (!is_null($input->getOption('active'))) {
-			$user->setActive((bool)$input->getOption('active'));
-		}
-
 		$em->persist($user);
 		$em->flush();
 
 		$output->writeln('User created!');
 	}
 
+	/**
+	 * {@inheritDoc}
+	 */
+	protected function interact(InputInterface $input, OutputInterface $output)
+	{
+		$em = $this->container->getDoctrine()->getManager($input->getOption('em'));
+		/* @var $em \Doctrine\ORM\EntityManager */
+
+		if (! $input->getArgument('email')) {
+			$email = $this->getHelper('dialog')->askAndValidate(
+				$output,
+				'Please choose an email: ',
+				function ($email) use ($em) {
+					if (empty($email)) {
+						throw new \Exception('Email can not be empty.');
+					}
+
+					if (filter_var($email, FILTER_VALIDATE_EMAIL) === false) {
+						throw new \Exception(sprintf('[%s] is not a valid email address.', $email));
+					}
+
+					if ($em->getRepository('CmsAuthentication:User')->findOneByEmail($email) !== null) {
+						throw new \Exception(sprintf('User with email [%s] already exists.', $email));
+					}
+
+					return $email;
+				}
+			);
+
+			$input->setArgument('email', $email);
+		}
+
+		if (! $input->getArgument('password')) {
+			$password = $this->getHelper('dialog')->askHiddenResponseAndValidate(
+				$output,
+				'Please choose a password: ',
+				function($password) {
+					if (empty($password)) {
+						throw new \Exception('Password can not be empty.');
+					}
+
+					return $password;
+				}
+			);
+
+			$input->setArgument('password', $password);
+		}
+
+		if (! $input->getArgument('name')) {
+			$name = $this->getHelper('dialog')->ask($output, 'Please choose a name: ');
+			$input->setArgument('name', $name);
+		}
+
+		if (! $input->getArgument('group')) {
+
+			$groupName = $this->getHelper('dialog')->askAndValidate(
+				$output,
+				'Please choose an group: ',
+				function ($groupName) use ($em) {
+					if (empty($groupName)) {
+						return null;
+					}
+
+					if ($em->getRepository('CmsAuthentication:Group')->findOneByName($groupName) === null) {
+						throw new \Exception(sprintf('Group [%s] does not exist.', $groupName));
+					}
+
+					return $groupName;
+				}
+			);
+
+			$input->setArgument('group', $groupName);
+		}
+	}
 }

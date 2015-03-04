@@ -26,6 +26,8 @@ use Supra\Package\Cms\Entity\Abstraction\Entity;
 /**
  * Single user preference item
  * @Entity
+ *
+ * @deprecated
  */
 class UserPreference extends Entity
 {
