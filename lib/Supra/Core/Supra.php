@@ -144,9 +144,7 @@ abstract class  Supra extends ContainerBuilder
 
 			$action = $action.'Action';
 
-			$packageName = $this->resolvePackage($package);
-
-			$parts = explode('\\', $packageName);
+			$parts = explode('\\', $this->resolvePackage($package));
 
 			array_pop($parts);
 
@@ -219,9 +217,7 @@ abstract class  Supra extends ContainerBuilder
 
 	public function formatName($package)
 	{
-		$class = $this->formatClass($package);
-
-		$class = explode('\\', $class);
+		$class = explode('\\', $this->formatClass($package));
 
 		return $class[count($class) - 1];
 	}
@@ -248,12 +244,8 @@ abstract class  Supra extends ContainerBuilder
 		//routing configuration
 		$container['config.universal_loader'] = new UniversalConfigLoader();
 		$container['routing.router'] = new Router();
-		$container['kernel.kernel'] = function ($container) {
-			return new HttpKernel();
-		};
-		$container['exception.controller'] = function () {
-			return new ExceptionController();
-		};
+		$container['kernel.kernel'] = new HttpKernel();
+		$container['exception.controller'] = new ExceptionController();
 
 		//internal services
 		//this actually must be based upon some config and there should be an option to override everything
