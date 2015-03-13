@@ -66,12 +66,17 @@ class SupraPackageFrameworkConfiguration extends AbstractPackageConfiguration im
 		return $definition;
 	}
 
+	/**
+	 * @return ArrayNodeDefinition
+	 */
 	public function getMailerDefinition()
 	{
 		$definition = new ArrayNodeDefinition('swiftmailer');
 
-		$definition->children()
+		$definition
+			->children()
 				->arrayNode('mailers')
+					->useAttributeAsKey('name')
 					->prototype('array')
 						->children()
 							->scalarNode('transport')->isRequired()->end()
@@ -211,5 +216,4 @@ class SupraPackageFrameworkConfiguration extends AbstractPackageConfiguration im
 
 		return $definition;
 	}
-
 }
