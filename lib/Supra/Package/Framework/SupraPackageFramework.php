@@ -387,13 +387,41 @@ class SupraPackageFramework extends AbstractSupraPackage
 
 		foreach ($mailerConfig['mailers'] as $id => $configurationDefinition) {
 			$container['mailer.mailers.'.$id] = function (ContainerInterface $container) use ($configurationDefinition) {
-				if ($configurationDefinition['transport'] != 'smtp') {
-					throw new \Exception('Sorry, only SMTP transports are supported now');
-				}
 
-				$transport = \Swift_SmtpTransport::newInstance($configurationDefinition['params']['host'], $configurationDefinition['params']['port']);
-				$transport->setUsername($configurationDefinition['params']['username']);
-				$transport->setPassword($configurationDefinition['params']['password']);
+				switch ($configurationDefinition['transport']) {
+					case 'smtp':
+						$transport = \Swift_SmtpTransport::newInstance($configurationDefinition['params']['host'], $configurationDefinition['params']['port']);
+						$transport->setUsername($configurationDefinition['params']['username']);
+						$transport->setPassword($configurationDefinition['params']['password']);
+						break;
+
+					case 'mail':
+						$transport = \Swift_MailTransport::newInstance();
+
+						if (isset($transport['params']['extra_params'])) {
+							$transport->setExtraParams($transport['params']['extra_params']);
+						}
+
+						break;
+
+					case 'sendmail':
+						$transport = \Swift_SendmailTransport::newInstance();
+
+						if (isset($configurationDefinition['params']['command'])) {
+							$transport->setCommand($configurationDefinition['params']['command']);
+						}
+
+						break;
+
+					case 'null':
+						$transport = \Swift_NullTransport::newInstance();
+						break;
+
+					default:
+						throw new \Exception(sprintf(
+							'Unknown mail transport [%s].', $configurationDefinition['transport']
+						));
+				}
 
 				return \Swift_Mailer::newInstance($transport);
 			};
