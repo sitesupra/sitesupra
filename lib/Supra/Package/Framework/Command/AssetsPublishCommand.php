@@ -62,10 +62,6 @@ class AssetsPublishCommand extends AbstractCommand
 				}
 
 				symlink($target, $link);
-			} else {
-				$output->writeln(sprintf(
-					'Skipping assets for package <info>%s</info>, no <info>Resources/public</info> folder found', $package->getName()
-				));
 			}
 		}
 
